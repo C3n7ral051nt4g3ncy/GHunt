@@ -7,13 +7,28 @@ def print_help_and_exit():
     exit()
 
 def check_versions(installed_version, op, version):
-    if (op == ">" and parse_version(installed_version) > parse_version(version)) \
-    or (op == "<" and parse_version(installed_version) < parse_version(version)) \
-    or (op == "==" and parse_version(installed_version) == parse_version(version)) \
-    or (op == ">=" and parse_version(installed_version) >= parse_version(version)) \
-    or (op == "<=" and parse_version(installed_version) <= parse_version(version)) :
-        return True
-    return False
+    return (
+        (
+            op == ">"
+            and parse_version(installed_version) > parse_version(version)
+        )
+        or (
+            op == "<"
+            and parse_version(installed_version) < parse_version(version)
+        )
+        or (
+            op == "=="
+            and parse_version(installed_version) == parse_version(version)
+        )
+        or (
+            op == ">="
+            and parse_version(installed_version) >= parse_version(version)
+        )
+        or (
+            op == "<="
+            and parse_version(installed_version) <= parse_version(version)
+        )
+    )
 
 def check():
     with open('requirements.txt', "r") as requirements_raw:
@@ -25,10 +40,9 @@ def check():
         if req["key"] not in installed_mods:
             print(f"[-] [modwall] I can't find the library {req['key']}, did you correctly installed the libraries specified in requirements.txt ? 😤\n")
             print_help_and_exit()
-        else:
-            if req["specs"] and (specs := req["specs"][0]):
-                op, version = specs
-                if not check_versions(installed_mods[req["key"]], op, version):
-                    print(f"[-] [modwall] The library {req['key']} version is {installed_mods[req['key']]} but it requires {op} {version}\n")
-                    print("Please upgrade your libraries specified in the requirements.txt file. 😇")
-                    print_help_and_exit()
+        elif req["specs"] and (specs := req["specs"][0]):
+            op, version = specs
+            if not check_versions(installed_mods[req["key"]], op, version):
+                print(f"[-] [modwall] The library {req['key']} version is {installed_mods[req['key']]} but it requires {op} {version}\n")
+                print("Please upgrade your libraries specified in the requirements.txt file. 😇")
+                print_help_and_exit()

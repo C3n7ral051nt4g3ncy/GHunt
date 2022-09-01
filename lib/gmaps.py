@@ -11,10 +11,7 @@ from lib.utils import *
 
 def scrape(gaiaID, client, cookies, config, headers, regex_rev_by_id, is_headless):
     def get_datetime(date_published):
-        if date_published.split()[0] == "a":
-            nb = 1
-        else:
-            nb = int(date_published.split()[0])
+        nb = 1 if date_published.split()[0] == "a" else int(date_published.split()[0])
         if "minute" in date_published:
             delta = relativedelta(minutes=nb)
         elif "hour" in date_published:
@@ -29,7 +26,7 @@ def scrape(gaiaID, client, cookies, config, headers, regex_rev_by_id, is_headles
             delta = relativedelta(years=nb)
         else:
             delta = relativedelta()
-        return (datetime.today() - delta).replace(microsecond=0, second=0)
+        return (datetime.now() - delta).replace(microsecond=0, second=0)
 
     tmprinter = TMPrinter()
 
@@ -62,7 +59,7 @@ def scrape(gaiaID, client, cookies, config, headers, regex_rev_by_id, is_headles
 
     tmprinter.out("Setting cookies...")
     driver.get("https://www.google.com/robots.txt")
-    
+
     if not config.gmaps_cookies:
         cookies = {"CONSENT": config.default_consent_cookie}
     for k, v in cookies.items():
@@ -80,9 +77,9 @@ def scrape(gaiaID, client, cookies, config, headers, regex_rev_by_id, is_headles
             tab_info = driver.find_element(by=By.XPATH, value="//span[contains(@aria-label, 'review') and contains(@aria-label, 'rating')]")
         except NoSuchElementException:
             pass
-        
+
         if tab_info and tab_info.text:
-            scroll_max = sum([int(x) for x in tab_info.text.split() if x.isdigit()])
+            scroll_max = sum(int(x) for x in tab_info.text.split() if x.isdigit())
         else:
             return False
 
@@ -99,7 +96,7 @@ def scrape(gaiaID, client, cookies, config, headers, regex_rev_by_id, is_headles
             reviews_elements = driver.find_elements(by=By.XPATH, value='//div[@data-review-id][@aria-label]')
             tmprinter.out(f"Fetching reviews... ({len(reviews_elements)}/{scroll_max})")
             if time() > timeout_start + timeout:
-                tmprinter.out(f"Timeout while fetching reviews !")
+                tmprinter.out("Timeout while fetching reviews !")
                 break
 
         tmprinter.out("Fetching internal requests history...")
@@ -127,7 +124,7 @@ def scrape(gaiaID, client, cookies, config, headers, regex_rev_by_id, is_headles
         rating_avg = rating / len(reviews)
         tmprinter.clear()
         print(f"[+] Average rating : {int(rating_avg) if int(rating_avg) / round(rating_avg, 1) == 1 else round(rating_avg, 1)}/5 stars !")
-        # 4.9 => 4.9, 5.0 => 5, we don't show the 0
+            # 4.9 => 4.9, 5.0 => 5, we don't show the 0
     except TimeoutException as e:
         print("Error fetching reviews, it is likely that Google has changed the layout of the reviews page.")
     return reviews

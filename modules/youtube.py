@@ -78,8 +78,7 @@ def analyze_snapshots(client, wb_client, channel_url, dates):
     else:
         return None
 
-    gaiaID = find_gaiaID(body)
-    return gaiaID
+    return find_gaiaID(body)
 
 def check_channel(client, wb_client, channel_url):
     # Fast check (no doubt that GaiaID is present in this period)
@@ -97,8 +96,7 @@ def check_channel(client, wb_client, channel_url):
 
 def launch_checks(client, wb_client, channel_data):
     for channel_url in channel_data["channel_urls"]:
-        gaiaID = check_channel(client, wb_client, channel_url)
-        if gaiaID:
+        if gaiaID := check_channel(client, wb_client, channel_url):
             return gaiaID
 
     return False
@@ -123,7 +121,7 @@ def youtube_hunt(channel_url):
         internal_token = out["keys"]["internal"]
         cookies = out["cookies"]
 
-    if not "PREF" in cookies:
+    if "PREF" not in cookies:
         pref_cookies = {"PREF": "tz=Europe.Paris&f6=40000000&hl=en"} # To set the lang in english
         cookies = {**cookies, **pref_cookies}
 
@@ -165,9 +163,9 @@ def youtube_hunt(channel_url):
 
     if is_channel_existing:
         if channel_data["email_contact"]:
-            print(f'[+] Email on profile : available !')
+            print('[+] Email on profile : available !')
         else:
-            print(f'[-] Email on profile : not available.')
+            print('[-] Email on profile : not available.')
         if channel_data["country"]:
             print(f'[+] Country : {channel_data["country"]}')
         print()
@@ -190,9 +188,7 @@ def youtube_hunt(channel_url):
     print("\n📌 [Google account]")
     # get name & profile picture
     account = get_account_data(client, gaiaID, internal_auth, internal_token, config)
-    name = account["name"]
-
-    if name:
+    if name := account["name"]:
         print(f"Name : {name}")
 
     # profile picture
@@ -209,17 +205,17 @@ def youtube_hunt(channel_url):
         # TODO: make sure it's necessary now
         profile_pic_img = Image.open(BytesIO(req.content))
         profile_pic_flathash = image_hash(profile_pic_img)
-        is_default_profile_pic = detect_default_profile_pic(profile_pic_flathash)
+        if is_default_profile_pic := detect_default_profile_pic(
+            profile_pic_flathash
+        ):
+            print("\n[-] Default profile picture")
 
-        if not is_default_profile_pic:
+        else:
             print("\n[+] Custom profile picture !")
             print(f"=> {profile_pic_url}")
             if config.write_profile_pic and not is_within_docker:
                 open(Path(config.profile_pics_dir) / f'{gaiaID}.jpg', 'wb').write(req.content)
                 print("Profile picture saved !")
-        else:
-            print("\n[-] Default profile picture")
-
     # cover profile picture
     cover_pic = account.get("cover_pics") and account["cover_pics"][0]
     if cover_pic and not cover_pic.is_default:
@@ -232,18 +228,22 @@ def youtube_hunt(channel_url):
             open(Path(config.profile_pics_dir) / f'cover_{gaiaID}.jpg', 'wb').write(req.content)
             print("Cover profile picture saved !")
 
-    # reviews
-    reviews = gmaps.scrape(gaiaID, client, cookies, config, config.headers, config.regexs["review_loc_by_id"], config.headless)
-
-    if reviews:
+    if reviews := gmaps.scrape(
+        gaiaID,
+        client,
+        cookies,
+        config,
+        config.headers,
+        config.regexs["review_loc_by_id"],
+        config.headless,
+    ):
         confidence, locations = gmaps.get_confidence(geolocator, reviews, config.gmaps_radius)
         print(f"\n[+] Probable location (confidence => {confidence}) :")
 
-        loc_names = []
-        for loc in locations:
-            loc_names.append(
-                f"- {loc['avg']['town']}, {loc['avg']['country']}"
-            )
+        loc_names = [
+            f"- {loc['avg']['town']}, {loc['avg']['country']}"
+            for loc in locations
+        ]
 
         loc_names = set(loc_names)  # delete duplicates
         for loc in loc_names:

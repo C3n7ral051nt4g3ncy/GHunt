@@ -2,6 +2,8 @@
 
 from lib import modwall; modwall.check() # We check the requirements
 
+modwall.check() # We check the requirements
+
 import sys
 import os
 from pathlib import Path
@@ -15,7 +17,7 @@ from modules.youtube import youtube_hunt
 
 
 if __name__ == "__main__":
-    
+
     # We change the current working directory to allow using GHunt from anywhere
     os.chdir(Path(__file__).parents[0])
 
@@ -29,11 +31,7 @@ if __name__ == "__main__":
         exit()
 
     module = sys.argv[1].lower()
-    if len(sys.argv) >= 3:
-        data = sys.argv[2]
-    else:
-        data = None 
-
+    data = sys.argv[2] if len(sys.argv) >= 3 else None
     if module == "email":
         email_hunt(data)
     elif module == "doc":

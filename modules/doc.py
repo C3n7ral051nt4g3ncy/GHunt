@@ -29,7 +29,10 @@ def doc_hunt(doc_link):
     if is_within_docker:
         print("[+] Docker detected, profile pictures will not be saved.")
 
-    doc_id = ''.join([x for x in doc_link.split("?")[0].split("/") if len(x) in (33, 44)])
+    doc_id = ''.join(
+        [x for x in doc_link.split("?")[0].split("/") if len(x) in {33, 44}]
+    )
+
     if doc_id:
         print(f"\nDocument ID : {doc_id}\n")
     else:
@@ -50,7 +53,7 @@ def doc_hunt(doc_link):
     client = httpx.Client(cookies=cookies, headers=headers)
 
     url = f"https://clients6.google.com/drive/v2beta/files/{doc_id}?fields=alternateLink%2CcopyRequiresWriterPermission%2CcreatedDate%2Cdescription%2CdriveId%2CfileSize%2CiconLink%2Cid%2Clabels(starred%2C%20trashed)%2ClastViewedByMeDate%2CmodifiedDate%2Cshared%2CteamDriveId%2CuserPermission(id%2Cname%2CemailAddress%2Cdomain%2Crole%2CadditionalRoles%2CphotoLink%2Ctype%2CwithLink)%2Cpermissions(id%2Cname%2CemailAddress%2Cdomain%2Crole%2CadditionalRoles%2CphotoLink%2Ctype%2CwithLink)%2Cparents(id)%2Ccapabilities(canMoveItemWithinDrive%2CcanMoveItemOutOfDrive%2CcanMoveItemOutOfTeamDrive%2CcanAddChildren%2CcanEdit%2CcanDownload%2CcanComment%2CcanMoveChildrenWithinDrive%2CcanRename%2CcanRemoveChildren%2CcanMoveItemIntoTeamDrive)%2Ckind&supportsTeamDrives=true&enforceSingleParent=true&key={internal_token}"
-    
+
     retries = 100
     for retry in range(retries):
         req = client.get(url)
@@ -84,11 +87,10 @@ def doc_hunt(doc_link):
     # Permissions
 
     user_permissions = []
-    if data["userPermission"]:
-        if data["userPermission"]["id"] == "me":
-            user_permissions.append(data["userPermission"]["role"])
-            if "additionalRoles" in data["userPermission"]:
-                user_permissions += data["userPermission"]["additionalRoles"]
+    if data["userPermission"] and data["userPermission"]["id"] == "me":
+        user_permissions.append(data["userPermission"]["role"])
+        if "additionalRoles" in data["userPermission"]:
+            user_permissions += data["userPermission"]["additionalRoles"]
 
     public_permissions = []
     owner = None
@@ -114,7 +116,7 @@ def doc_hunt(doc_link):
         print(f"Name : {owner['name']}")
         print(f"Email : {owner['emailAddress']}")
         print(f"Google ID : {owner['id']}")
-        
+
         # profile picture
         profile_pic_link = owner['photoLink']
         req = client.get(profile_pic_link)

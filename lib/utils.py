@@ -54,7 +54,7 @@ def update_emails(emails, data):
         Typically canonical user email
         May not be present in the list method response
     """
-    if not "email" in data:
+    if "email" not in data:
         return emails
 
     for e in data["email"]:
@@ -71,7 +71,7 @@ def update_emails(emails, data):
 
 def is_email_google_account(httpx_client, auth, cookies, email, hangouts_token):
     host = "https://people-pa.clients6.google.com"
-    url = "/v2/people/lookup?key={}".format(hangouts_token)
+    url = f"/v2/people/lookup?key={hangouts_token}"
     body = """id={}&type=EMAIL&matchType=EXACT&extensionSet.extensionNames=HANGOUTS_ADDITIONAL_DATA&extensionSet.extensionNames=HANGOUTS_OFF_NETWORK_GAIA_LOOKUP&extensionSet.extensionNames=HANGOUTS_PHONE_DATA&coreIdParams.useRealtimeNotificationExpandedAcls=true&requestMask.includeField.paths=person.email&requestMask.includeField.paths=person.gender&requestMask.includeField.paths=person.in_app_reachability&requestMask.includeField.paths=person.metadata&requestMask.includeField.paths=person.name&requestMask.includeField.paths=person.phone&requestMask.includeField.paths=person.photo&requestMask.includeField.paths=person.read_only_profile_info&requestMask.includeContainer=AFFINITY&requestMask.includeContainer=PROFILE&requestMask.includeContainer=DOMAIN_PROFILE&requestMask.includeContainer=ACCOUNT&requestMask.includeContainer=EXTERNAL_ACCOUNT&requestMask.includeContainer=CIRCLE&requestMask.includeContainer=DOMAIN_CONTACT&requestMask.includeContainer=DEVICE_CONTACT&requestMask.includeContainer=GOOGLE_GROUP&requestMask.includeContainer=CONTACT"""
 
     headers = {
@@ -90,7 +90,7 @@ def is_email_google_account(httpx_client, auth, cookies, email, hangouts_token):
         print("[-] Error :")
         pprint(data)
         exit()
-    elif not "matches" in data:
+    elif "matches" not in data:
         exit("[-] This email address does not belong to a Google Account.")
 
     return data
@@ -108,12 +108,16 @@ def get_account_data(httpx_client, gaiaID, internal_auth, internal_token, config
     req = httpx_client.get(url, headers=headers)
     data = json.loads(req.text)
     # pprint(data)
-    if "error" in data and "Request had invalid authentication credentials" in data["error"]["message"]:
-        exit("[-] Cookies/Tokens seems expired, please verify them.")
-    elif "error" in data:
-        print("[-] Error :")
-        pprint(data)
-        exit()
+    if "error" in data:
+        if (
+            "Request had invalid authentication credentials"
+            in data["error"]["message"]
+        ):
+            exit("[-] Cookies/Tokens seems expired, please verify them.")
+        else:
+            print("[-] Error :")
+            pprint(data)
+            exit()
     if data["personResponse"][0]["status"].lower() == "not_found":
         return False
 
@@ -121,28 +125,30 @@ def get_account_data(httpx_client, gaiaID, internal_auth, internal_token, config
 
     profile_data = data["personResponse"][0]["person"]
 
-    profile_pics = []
-    for p in profile_data["photo"]:
-        profile_pics.append(Picture(p["url"], p.get("isDefault", False)))
+    profile_pics = [
+        Picture(p["url"], p.get("isDefault", False))
+        for p in profile_data["photo"]
+    ]
 
     # mostly is default
-    cover_pics = []
-    for p in profile_data["coverPhoto"]:
-        cover_pics.append(Picture(p["imageUrl"], p["isDefault"]))
+    cover_pics = [
+        Picture(p["imageUrl"], p["isDefault"])
+        for p in profile_data["coverPhoto"]
+    ]
 
     emails = update_emails({}, profile_data)
 
     # absent if user didn't enter or hide them
     phones = []
     if "phone" in profile_data:
-        for p in profile_data["phone"]:
-            phones.append(f'{p["value"]} ({p["type"]})')
-
+        phones.extend(f'{p["value"]} ({p["type"]})' for p in profile_data["phone"])
     # absent if user didn't enter or hide them
     locations = []
     if "location" in profile_data:
-        for l in profile_data["location"]:
-            locations.append(l["value"] if not l.get("current") else f'{l["value"]} (current)')
+        locations.extend(
+            f'{l["value"]} (current)' if l.get("current") else l["value"]
+            for l in profile_data["location"]
+        )
 
     # absent if user didn't enter or hide them
     organizations = []
@@ -165,24 +171,18 @@ def get_account_name(httpx_client, gaiaID, data, internal_auth, internal_token, 
     req = httpx_client.get(f"https://www.google.com/maps/contrib/{gaiaID}")
     gmaps_source = req.text
     match = re.search(r'<meta content="Contributions by (.*?)" itemprop="name">', gmaps_source)
-    if not match:
-        return None
-    return match[1]
+    return match[1] if match else None
 
 def image_hash(img):
-    flathash = imagehash.average_hash(img)
-    return flathash
+    return imagehash.average_hash(img)
 
 def detect_default_profile_pic(flathash):
-    if flathash - imagehash.hex_to_flathash("000018183c3c0000", 8) < 10 :
-        return True
-    return False
+    return flathash - imagehash.hex_to_flathash("000018183c3c0000", 8) < 10
 
 def sanitize_location(location):
     not_country = False
     not_town = False
     town = "?"
-    country = "?"
     if "city" in location:
         town = location["city"]
     elif "village" in location:
@@ -193,8 +193,9 @@ def sanitize_location(location):
         town = location["municipality"]
     else:
         not_town = True
-    if not "country" in location:
+    if "country" not in location:
         not_country = True
+        country = "?"
         location["country"] = country
     if not_country and not_town:
         return False
@@ -211,16 +212,18 @@ def get_driverpath():
     else:
         chromedrivermanager_silent = ChromeDriverManager(print_first_line=False, log_level=0)
     driver = chromedrivermanager_silent.driver
-    driverpath = chromedrivermanager_silent.driver_cache.find_driver(driver)
-    if driverpath:
+    if driverpath := chromedrivermanager_silent.driver_cache.find_driver(
+        driver
+    ):
         return driverpath
-    else:
-        print("[Webdrivers Manager] I'm updating the chromedriver...")
-        if within_docker():
-            driver_path = ChromeDriverManager(path="/usr/src/app").install()
-        else:
-            driver_path = ChromeDriverManager().install()
-        print("[Webdrivers Manager] The chromedriver has been updated !\n")
+    print("[Webdrivers Manager] I'm updating the chromedriver...")
+    driver_path = (
+        ChromeDriverManager(path="/usr/src/app").install()
+        if within_docker()
+        else ChromeDriverManager().install()
+    )
+
+    print("[Webdrivers Manager] The chromedriver has been updated !\n")
     return driver_path
 
 

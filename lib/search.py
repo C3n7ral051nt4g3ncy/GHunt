@@ -13,19 +13,26 @@ def search(query, data_path, gdocs_public_doc, size=1000):
         out = json.loads(f.read())
         token = out["keys"]["gdoc"]
         cookies = out["cookies"]
-    data = {"request": '["documentsuggest.search.search_request","{}",[{}],null,1]'.format(query, size)}
+    data = {
+        "request": f'["documentsuggest.search.search_request","{query}",[{size}],null,1]'
+    }
+
 
     retries = 10
     for retry in list(range(retries))[::-1]:
-        req = httpx.post('https://docs.google.com/document/d/{}/explore/search?token={}'.format(gdocs_public_doc, token),
-                        cookies=cookies, data=data)
+        req = httpx.post(
+            f'https://docs.google.com/document/d/{gdocs_public_doc}/explore/search?token={token}',
+            cookies=cookies,
+            data=data,
+        )
+
         #print(req.text)
         if req.status_code == 200:
             break
         if req.status_code == 500:
             if retry == 0:
                 exit(f"[-] Error (GDocs): request gives {req.status_code}, wait a minute and retry !")
-            print(f"[-] GDocs request gives a 500 status code, retrying in 5 seconds...")
+            print("[-] GDocs request gives a 500 status code, retrying in 5 seconds...")
             continue
 
     output = json.loads(req.text.replace(")]}'", ""))
